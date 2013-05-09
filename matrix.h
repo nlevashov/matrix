@@ -2,40 +2,82 @@
 #include <vector>
 using namespace std;
 
+//(done)убрать &
+//(fixed)обработка ошибок
+//(fixed)разные типы
+//(fixed)return types
+
+class temp_matrix;
+
 template <typename T = double>
 class matrix {
 	size_t _nrow;
 	size_t _ncol;
-	typedef vector<T> _Trow; //можно ли упростить????
+	typedef vector<T> _Trow;
 	vector<_Trow> _matr;
 
 	public:
 		matrix();
 		matrix(size_t);
-		matrix(size_t, size_t);
-		matrix(const matrix &);
+		matrix(size_t, size_t);		
+		template <typename U> matrix(const matrix<U> &);
+		matrix(temp_matrix &);
 //		~matrix();
 
-		matrix & operator = (const matrix &);
+		template <typename U> matrix & operator = (const matrix<U> &);
 		void scan ();
 		void print () const;
 
 		size_t get_row_num () const;
 		size_t get_col_num () const;
-		_Trow & operator [] (size_t id) {return _matr[id];} //как вынести?
+		const _Trow operator [] (const size_t id) const { return _matr[id]; }
 
-		matrix & operator * (T) const;
+		matrix operator * (T) const;
 
-		matrix & operator + (const matrix &) const;
-		matrix & operator - (const matrix &) const;
-		matrix & operator * (const matrix &) const;
+		matrix operator + (const matrix &) const;
+		matrix operator - (const matrix &) const;
+		matrix operator * (const matrix &) const;
 
 		T trace() const;
 		T det() const;
 
-		matrix & transp() const;
-		matrix & inv() const;
+		matrix transp() const;
+		matrix<double> inv() const;
+
 	private:
+
+
+};
+
+
+class temp_matrix {
+	public:
+		size_t _nrow;
+		size_t _ncol;
+		typedef vector<double> _Trow;
+		vector<_Trow> _matr;
+
+		temp_matrix(size_t nrow, size_t ncol) {
+			_nrow = nrow;
+			_ncol = ncol;
+			_matr.resize(_nrow);
+			for (size_t i = 0; i < _nrow; i++) _matr[i].resize(_ncol);
+		}
+
+		template <typename U> temp_matrix(const matrix<U> & m) {
+			_nrow = m.get_row_num();
+			_ncol = m.get_col_num();
+
+			_matr.resize(_nrow);
+			for (size_t i = 0; i < _nrow; i++) _matr[i].resize(_ncol);
+
+			for (size_t i = 0; i < _nrow; i++) {
+				for (size_t j = 0; j < _ncol; j++) {
+					_matr[i][j] = m[i][j];
+				}
+			}
+		}
+
 		void strswap(size_t x, size_t y)
 		{
 			_Trow temp = _matr[x];
@@ -53,7 +95,6 @@ class matrix {
 			for (size_t i = 0; i < _ncol; i++) _matr[x][i] -= _matr[y][i] * p;
 		}
 };
-
 
 //-----constructors---------------------------------------------------------------
 
@@ -86,23 +127,56 @@ matrix<T>::matrix(size_t nrow, size_t ncol)
 
 
 template <typename T>
-matrix<T>::matrix(const matrix & m)
+template <typename U>
+matrix<T>::matrix(const matrix<U> & m)
+{
+	_nrow = m.get_row_num();
+	_ncol = m.get_col_num();
+
+	_matr.resize(_nrow);
+	for (size_t i = 0; i < _nrow; i++) _matr[i].resize(_ncol);
+
+	for (size_t i = 0; i < _nrow; i++) {
+		for (size_t j = 0; j < _ncol; j++) {
+			_matr[i][j] = m[i][j];
+		}
+	}
+}
+
+template <typename T>
+matrix<T>::matrix(temp_matrix & m)
 {
 	_nrow = m._nrow;
 	_ncol = m._ncol;
-	_matr = m._matr;
-}
 
+	_matr.resize(_nrow);
+	for (size_t i = 0; i < _nrow; i++) _matr[i].resize(_ncol);
+
+	for (size_t i = 0; i < _nrow; i++) {
+		for (size_t j = 0; j < _ncol; j++) {
+			_matr[i][j] = m._matr[i][j];
+		}
+	}
+}
 
 
 //-----assign_input_output--------------------------------------------------------
 
 template <typename T>
-matrix<T> & matrix<T>::operator = (const matrix & m)
+template <typename U> 
+matrix<T> & matrix<T>::operator = (const matrix<U> & m)
 {
-	_nrow = m._nrow;
-	_ncol = m._ncol;
-	_matr = m._matr;
+	_nrow = m.get_row_num();
+	_ncol = m.get_col_num();
+
+	_matr.resize(_nrow);
+	for (size_t i = 0; i < _nrow; i++) _matr[i].resize(_ncol);
+
+	for (size_t i = 0; i < _nrow; i++) {
+		for (size_t j = 0; j < _ncol; j++) {
+			_matr[i][j] = m[i][j];
+		}
+	}
 }
 
 
@@ -170,7 +244,7 @@ size_t matrix<T>::get_col_num () const
 //-----arifmetic_fuctions---------------------------------------------------------
 
 template <typename T>
-matrix<T> & matrix<T>::operator * (T c) const
+matrix<T> matrix<T>::operator * (T c) const
 {
 	matrix * ans = new matrix(*this);
 
@@ -182,14 +256,14 @@ matrix<T> & matrix<T>::operator * (T c) const
 
 
 template <typename T>
-matrix<T> & matrix<T>::operator + (const matrix & m) const
+matrix<T> matrix<T>::operator + (const matrix & m) const
 {
+	matrix * ans = new matrix(_nrow, _ncol);
+
 	if ((_nrow != m._nrow) || (_ncol != m._ncol)) {
 		cerr << "Incorrect size" << endl;
-		exit(EXIT_FAILURE);
+		return *ans;
 	}
-
-	matrix * ans = new matrix(_nrow, _ncol);
 
 	for (size_t i = 0; i < _nrow; i++)
 		for (size_t j = 0; j < _ncol; j++) ans->_matr[i][j] = _matr[i][j] + m._matr[i][j];
@@ -199,14 +273,14 @@ matrix<T> & matrix<T>::operator + (const matrix & m) const
 
 
 template <typename T>
-matrix<T> & matrix<T>::operator - (const matrix & m) const
+matrix<T> matrix<T>::operator - (const matrix & m) const
 {
+	matrix * ans = new matrix(_nrow, _ncol); //<double> ли как??????
+
 	if ((_nrow != m._nrow) || (_ncol != m._ncol)) {
 		cerr << "Incorrect size" << endl;
-		exit(EXIT_FAILURE);
+		return *ans;
 	}
-
-	matrix * ans = new matrix(_nrow, _ncol); //<double> ли как??????
 
 	for (size_t i = 0; i < _nrow; i++)
 		for (size_t j = 0; j < _ncol; j++) ans->_matr[i][j] = _matr[i][j] - m._matr[i][j];
@@ -216,14 +290,14 @@ matrix<T> & matrix<T>::operator - (const matrix & m) const
 
 
 template <typename T>
-matrix<T> & matrix<T>::operator * (const matrix & m) const
+matrix<T> matrix<T>::operator * (const matrix & m) const
 {
+	matrix * ans = new matrix(_nrow, m._ncol);
+
 	if (_ncol != m._nrow) {
 		cerr << "Incorrect size" << endl;
-		exit(EXIT_FAILURE);
+		return *ans;
 	}
-
-	matrix * ans = new matrix(_nrow, m._ncol);
 
 	for (size_t i = 0; i < _nrow; i++)
 		for (size_t j = 0; j < m._ncol; j++) {
@@ -243,7 +317,7 @@ T matrix<T>::trace() const
 {
 	if (_nrow != _ncol) {
 		cerr << "Incorrect size" << endl;
-		exit(EXIT_FAILURE);
+		return 0;
 	}
 
 	T tr = 0;
@@ -258,10 +332,10 @@ T matrix<T>::det() const
 {
  	if (_nrow != _ncol) {
 		cerr << "Incorrect size" << endl;
-		exit(EXIT_FAILURE);
+		return 0;
 	}
 
-	matrix temp(*this);
+	temp_matrix temp(*this);
 
 	double d = 1;
 
@@ -286,27 +360,29 @@ T matrix<T>::det() const
 }
 
 template <typename T>
-matrix<T> & matrix<T>::transp() const
+matrix<T> matrix<T>::transp() const
 {
-	matrix * ans = new matrix(_ncol, _nrow);
+	matrix ans(_ncol, _nrow);
 
 	for (size_t i = 0; i < _nrow; i++)
-		for (size_t j = 0; j < _ncol; j++) ans->_matr[j][i] = _matr[i][j];
+		for (size_t j = 0; j < _ncol; j++) ans._matr[j][i] = _matr[i][j];
 
-	return *ans;
+	return ans;
 }
 
 template <typename T>
-matrix<T> & matrix<T>::inv() const
+matrix<double> matrix<T>::inv() const
 {
+	temp_matrix ans(_nrow, _nrow);
+
  	if (_nrow != _ncol) {
 		cerr << "Incorrect size" << endl;
-		exit(EXIT_FAILURE);
+		return matrix<double>(ans);
 	}
 
-	matrix temp(*this);
-	matrix * ans = new matrix(_nrow);
-	for (size_t i = 0; i < _nrow; i++) ans->_matr[i][i] = 1;
+	temp_matrix temp = *this;
+
+	for (size_t i = 0; i < _nrow; i++) ans._matr[i][i] = 1;
 
 	for (size_t i = 0; i < _nrow; i++) {
 		size_t j;
@@ -319,24 +395,24 @@ matrix<T> & matrix<T>::inv() const
 		}
 
 		if (i != j) {
-			ans->strswap(i, j);
+			ans.strswap(i, j);
 			temp.strswap(i, j);
 		}
 
-		ans->strmult(i, ((double) 1) / temp._matr[i][i]);
+		ans.strmult(i, ((double) 1) / temp._matr[i][i]);
 		temp.strmult(i, ((double) 1) / temp._matr[i][i]);
 
 		for (j = i + 1; j < _nrow; j++) {
-			ans->strsub(j, i, temp._matr[j][i]);
+			ans.strsub(j, i, temp._matr[j][i]);
 			temp.strsub(j, i, temp._matr[j][i]);
 		}
 	}
 
 	for (size_t i = _nrow - 1; i > 0; i--)
 		for (size_t j = i; j > 0; j--) {
-			ans->strsub(j - 1, i, temp._matr[j-1][i]);
+			ans.strsub(j - 1, i, temp._matr[j-1][i]);
 			temp.strsub(j - 1, i, temp._matr[j-1][i]);
 		}
 
-	return *ans;
+	return matrix<double>(ans);
 }
